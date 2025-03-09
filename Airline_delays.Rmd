@@ -1,0 +1,346 @@
+---
+title: "Coding Challenge 2"
+output: html_document
+date: "2025-03-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Import required libraries
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(nycflights13)
+library(gridExtra)
+library(tidytext)
+library(ggpmisc)
+library(mgcv)
+```
+# Brief <br>
+**Questions posed** <br>
+The national American body for regulating airlines has approached you and has a number of questions that they would like answered. The questions relate largely to arrival delay times and factors that are impacting upon this. The questions that they would like answered are as follows:<br><br>
+1. For flights conducted over short, medium and long distances; which airlines are currently performing the worst in terms of delays?
+<br>
+2. Across all airlines and airports; are there any standout carriers or airports that are subject to more consistent or more extreme delays?
+<br>
+3. Are any factors in terms of visibility or other weather conditions affecting flight delays? If so, which? <br>
+
+**Data preparation, joining and cleaning**
+```{r}
+# Clean flights dataframe
+flights_clean <- flights %>%
+  mutate(dep_delay = ifelse(is.na(dep_delay), 0, dep_delay), 
+         arr_delay = ifelse(is.na(arr_delay), 0, arr_delay), 
+         carrier = factor(carrier),
+         origin = factor(origin),
+         dest = factor(dest))
+
+#Select columns from airport DF for joining
+airport_join <- airports %>%
+  select("name","faa")
+
+#Clean weather and select relevant columns
+weather_clean <- weather %>%
+  drop_na(wind_speed, temp) %>%
+  select(time_hour, temp, visib, origin, wind_speed)
+
+# Join flights to airlines
+flights_with_airlines <- flights_clean %>%
+  inner_join(airlines, by = "carrier")
+
+# Join flights with airlines to airports and add suffix to 'name' column to indicate name of airline vs name of airport
+flights_airlines_airports <- flights_with_airlines %>%
+    inner_join(airport_join, by = c("dest" = "faa"), suffix = c(x = "_airline", y = "_airport"))
+
+```
+
+#  1. For flights conducted over short, medium and long distances; which airlines are currently performing the worst in terms of delays? <br>
+
+**Data Preparation**
+```{r}
+# Create factor variable categorising flights into short, medium and long distance flights
+flights_airlines_airports <- flights_airlines_airports %>%
+  mutate(dist_cat = case_when(
+    distance > 4000 ~ "long",
+    distance >2000 & distance < 4000 ~ "medium",
+    TRUE ~ "short"),
+    dist_cat = factor(dist_cat, levels = c("short", "medium", "long")))
+
+# Group by airline and distance and calculate mean and median delays
+delay_df <- flights_airlines_airports %>%
+  group_by(name_airline, dist_cat) %>%
+  mutate(avg_arr_delay = mean(arr_delay),
+            median_arr_deay = median(arr_delay)) %>%
+  arrange(desc(avg_arr_delay)) %>%
+  ungroup()
+
+# Reorder within each distance category
+delay_df <- flights_airlines_airports %>%
+  group_by(name_airline, dist_cat) %>%
+  summarise(
+    avg_arr_delay = mean(arr_delay),
+    median_arr_delay = median(arr_delay)) %>% 
+  ungroup()
+
+# Create variable reordered by average within each distance ategory
+delay_df <- delay_df %>%
+  mutate(name_airline_wrapped = reorder_within(name_airline, -avg_arr_delay, dist_cat))
+
+# Create variable reordered by median delay within each distance category. 
+delay_df_med <- delay_df %>%
+  mutate(name_airline_wrapped = reorder_within(name_airline, -median_arr_delay, dist_cat))
+```
+**Plot**
+``` {r, out.width='100%', fig.align='center', fig.width = 8, fig.height = 8}
+# Plot Mean arrival delay by airline with facets for each flight distance category
+delay_plot_mean <- delay_df %>%
+  filter(avg_arr_delay > 0) %>%
+  ggplot(aes(x = name_airline_wrapped, y = avg_arr_delay)) +
+  geom_bar(stat = "identity", fill = "#1f363e") +
+  labs(x = "Airline", 
+       y = "Average Delay Past Scheduled Arrival (mins)", 
+       title = "Average Flight Lateness by Airline and Flight Distance") +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "#cfe0c3") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90),
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(fill = alpha("#70a9a1", 0.5))) +
+  facet_wrap(~ dist_cat, scales = "free_x") +
+  scale_x_reordered()
+
+# Create a variable reordered by median within each distance category
+delay_df_med <- delay_df %>%
+  mutate(name_airline_wrapped = reorder_within(name_airline, -median_arr_delay, dist_cat))
+
+# Plot median arrival delay by airline with facets for each flight distance category
+delay_plot_med <- delay_df_med %>%
+  filter(median_arr_delay > 0) %>%
+  ggplot(aes(x = name_airline_wrapped, 
+             y = median_arr_delay)) +
+  geom_bar(stat = "identity", fill = "#1f363e") +
+  labs(y = "Median Delay Past Scheduled Arrival (mins)", title = "Median Flight Lateness by Airline and Flight Distance") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(panel.background = element_rect(fill = alpha("#70a9a1",0.5))) +
+  theme(axis.title.x = element_blank()) +
+  facet_wrap(~dist_cat, scales = "free_x") +
+  scale_x_reordered()
+
+# Arrange 2 plots as grid
+grid.arrange(delay_plot_med, delay_plot_mean)
+```
+**Graph explanation and question 1 answer:**<br><br>
+      **" For flights conducted over short, medium and long distances; which airlines are currently performing the worst in terms of delays?"**<br><br>
+The graph displays both median and mean delay times for airlines over short (<2000km), medium (> 2000 & < 4000) and long (> 4000) distance flights. Only airlines with mean or median delay times greater than 0 have been included. <br>
+
+A high median delay time indicates that an airline is more consistently late over that distance, whereas an airline with a high mean value while not being present on the median plots may indicate that an airline's mean value is being heavily influenced by a number of extreme delay time outliers.<br>
+
+**The airlines to be avoided over short, medium and long haul flights in order to avoid delays are:**. <br>
+  **Short distance flights:**<br>
+  Frontier and AirTran. These airlines are the only airlines with median delays greater than 0, and also top the mean chart. This indicates that they are both consistently arriving behind schedule while also experiencing a greater number of very long delays.<br> 
+  
+  **Medium distance flights:**<br> Southwest airlines are the only airline to have a median delay time > 0 and also have a mean delay time more than twice that of the next airline. This again indicates consistent lateness as well as more extremely late flights on occasion.<br> 
+  
+  **Long distance flights:**<br> 
+  Only 800 flights fall into this category, so there may be insufficient data to answer the question. However, it appears as though there are no long haul flights which consistently arrive significantly later than scheduled.<br> 
+
+# 2. Across all airlines and airports; are there any standout carriers or airports that are subject to more consistent or more extreme delays? <br>
+```{r, out.width='100%', fig.align='center'}
+# Create summary dataframe grouping by airline and airport and taking average of arrival delay as well as a count of rows in each airport/airline combination.
+avg_delay_by_airport_airline <- flights_airlines_airports %>%
+  group_by(name_airline, name_airport) %>%
+  summarise(worst_avg_delays = mean(arr_delay),
+            count = n()) %>%
+  arrange(desc(worst_avg_delays))
+
+# By median
+med_delay_by_airport_airline <- flights_airlines_airports %>%
+  group_by(name_airline, name_airport) %>%
+  summarise(worst_med_delays = median(arr_delay),
+            count = n()) %>%
+  arrange(desc(worst_med_delays))
+
+  # Heatmap of all airlines with average delays > 20 mins at each airport, with more than 10 entries for airport/airline combination.
+avg_delay_by_airport_airline %>%
+  filter(worst_avg_delays > 20, count > 10) %>%
+  ggplot(aes(x = name_airport, y = name_airline, fill = worst_avg_delays)) +
+  geom_tile() +
+  geom_text(aes(label = round(worst_avg_delays,1)), colour = "white", size = 3, angle = 90) +
+  scale_fill_gradient(high = "#1f363e", low = "#cfe0c3") +
+  labs(x = "Airport", y = "Airline", title = "Worst Average Arrival Delays by Airport and Airline", fill = "Average delay \n\ in minutes") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, size = 10, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(panel.grid.major.x = element_line(colour = alpha("grey",0.4))) +
+  theme(legend.title = element_text(hjust = 0.3))
+
+  # Heatmap of all airlines with median delays > 0 mins at each airport,  with more than 10 entries for airport/airline combination.
+med_delay_by_airport_airline %>%
+  filter(worst_med_delays >= 10, count > 10) %>%
+  ggplot(aes(x = name_airport, y = name_airline, fill = worst_med_delays)) +
+  geom_tile() +
+  geom_text(aes(label = round(worst_med_delays,1)), colour = "white", size = 3, angle = 90) +
+  scale_fill_gradient(high = "#1f363e", low = "#cfe0c3") +
+  labs(x = "Airport", y = "Airline", title = "Worst Median Arrival Delays by Airport and Airline", fill = "Median delay \n\ in minutes") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, size = 10, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(panel.grid.major.x = element_line(colour = alpha("grey",0.4))) +
+  theme(legend.title = element_text(hjust = 0.3))
+
+```
+**Plot explanation and Question 2 answer:**<br> 
+
+Both median and mean plots are displayed again, to ensure that both the airlines which may have had some outlier extremne lateness events as well as those that are more consistently late are displayed.<br> 
+
+The heatmap shows each combination of airline and airport, with darker plot points indicating a higher value for average or median delay time.<br> 
+
+**The airlines that an airport manager may be likely to identify as problematic in terms of consistent lateness (Median delay times >= 10 minutes) at some destinations could be:**<br>
+    1. ExpressJet Airlines at Columbia Metropolitan airport, Mc Ghee Tyson, Lambert Louis International, Tulsa International and Will Rogers World.<br>
+    2. United Airlines at Jackson Hole Airport.<br> 
+    3. Endeavour Air at Port Columbus International.<br> 
+    
+**Worth noting are also the following combinations which may be prone to less frequent but significant delays:**<br> 
+    1. AirTran Airways at Harfield Jackons Atlanta International.<br> 
+    2. Frontier Airlines at Denver International.<br> 
+    3. Envoy Air at Cleveland Hopkins International. <br> 
+
+# 3. Are any factors in terms of visibility or other weather conditions affecting flight delays? If so, which?<br>
+
+**Data Preparation**
+``` {r}
+set.seed(999)
+# New dataframe ensuring that only the three origin airports are selected.
+weather_analysis_df <- flights_airlines_airports %>%
+  filter(origin %in% c("EWR", "JFK", "LGA"))
+
+# Join flights airlines airports to weather clean
+join_all <- weather_analysis_df %>%
+  inner_join(weather_clean, by = c("origin","time_hour"))
+
+# Add airport names to join_all and rename faa for clarity
+join_all_2 <- airports %>% 
+  select(faa, name) %>%
+  rename(origin = faa) %>%
+  inner_join(join_all, by = "origin")
+
+# Reduce compute time and busy-ness of scatter plots by sampling dataset 20000 times
+join_all_sampled <- join_all_2 %>%
+  slice_sample(replace = FALSE, n = 20000) %>%
+  ungroup()
+
+
+```
+
+**Preparing Plot 1 - General Answer**
+```{r, out.width='100%', fig.align='center'}
+## Plot which breaks visibility up into 3 categories, low, medium, high
+## Visibility vs dep_delay
+mean_arr_delay_factor <- join_all_2 %>%
+  mutate(visib_cat = case_when(
+    visib > 9 ~ "excellent",
+    visib > 4  ~ "poor",
+    TRUE ~ "terrible"), 
+    visib_cat = factor(visib_cat, levels = c("terrible", "poor", "excellent"))) %>%
+  filter(visib %in% c(1,5,10)) %>%
+  group_by(visib_cat) %>%
+  summarise(mean_arr_delay = mean(arr_delay, na.rm = TRUE),
+            median_arr_delay = median(arr_delay, na.rm = TRUE)) %>%
+  ungroup() 
+mean_arr_delay_factor %>%  
+  ggplot(aes(x = visib_cat, y = mean_arr_delay)) +
+   geom_bar(stat = "identity", fill = "#1f363e") +
+  labs(x = "Visibility", y = "Average Arrival Delay (mins)", title = "Average Arrival Delays in Differing Visibilities") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(panel.background = element_rect(fill = alpha("#70a9a1",0.5)))
+```
+This first plot provides a quick overview of how visibility can influence arrival delays. <br> 
+**The general trend is that as visibility becomes poorer, there is a higher average arrival delay. Implying that yes, poor weather does impact upon flight delay times.**<br>
+
+However, a deeper dive into some other variables will provide a more holistic and slightly more nuanced view. 
+
+**Plot 2 - Wrapped scatter plots comparing the effect of various weather conditions on delay time.**<br>
+``` {r, out.width='100%', fig.align='center', warning = FALSE, message = FALSE}
+cache = FALSE
+set.seed(999)
+
+# Non-linear model for temperature's relationship to delay time.
+gam_model <- gam(dep_delay ~ s(temp), data = join_all_sampled %>% filter(dep_delay < 300))
+model_summary <- summary(gam_model)
+
+adj_r2 <- round(model_summary$r.sq, 2)
+p_val <- round(model_summary$s.table[1, "p-value"], 5)
+
+r2_text <- if (adj_r2 < 0.001) "<0.001" else round(adj_r2, 3)
+p_val_text <- if (p_val < 0.001) "<0.001" else round(p_val, 3)
+
+temp_vs_dep <- join_all_sampled %>%
+  filter(dep_delay < 300) %>%
+  ggplot(aes(x = temp, y = dep_delay)) +
+  geom_point(alpha = 0.1, position = "jitter", colour = "#1f363e") +
+  geom_smooth(method = "gam", formula = y ~ s(x), colour = "darkred", se = FALSE) +
+  ylim(0, 300) +
+  annotate("text", x = 10, y = 300,
+           label = paste("Adj R² =", r2_text, "\np-value =", p_val_text),
+           hjust = 0, vjust = 1, size = 3) +
+  labs(x = "Temperature", y = "Departure Delay (mins)", 
+       title = "Effect of Temperature on Departure \n\ Delays") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 8),
+        legend.position = "none",
+        panel.background = element_rect(fill = alpha("#70a9a1", 0.5)))
+
+wind_vs_dep <- join_all_sampled %>%
+  filter(dep_delay < 300) %>%
+  ggplot(aes(x = wind_speed, y = dep_delay)) +
+  geom_point(alpha = 0.1, position = "jitter", colour = "#1f363e") +
+  geom_smooth(method = "lm", colour = "darkred", se = FALSE) +
+  stat_poly_eq(formula = y ~ x, 
+               aes(label = paste(after_stat(rr.label), after_stat(p.value.label), sep = "~~~")),
+               parse = TRUE,
+               label.y = 0.95,
+               colour = "black") +
+  labs(x = "Wind Speed", y = "Departure Delay (mins)", 
+       title = "Effect of Wind Speed on Departure \n\ Delays") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 8),
+        legend.position = "none",
+        axis.title.y = element_blank(),
+        panel.background = element_rect(fill = alpha("#70a9a1", 0.5)))
+
+vis_vs_dep <- join_all_sampled %>%
+  filter(dep_delay < 300) %>%
+  ggplot(aes(x = visib, y = dep_delay)) +
+  geom_point(alpha = 0.1, position = "jitter", colour = "#1f363e") +
+  geom_smooth(method = "lm", colour = "darkred", se = FALSE) +
+  stat_poly_eq(formula = y ~ x,
+               aes(label = paste(after_stat(rr.label), after_stat(p.value.label), sep = "~~~")),
+               parse = TRUE,
+               label.y = 0.95,
+               colour = "black") +
+  labs(x = "Visibility Rating", y = "Departure Delay (mins)", 
+       title = "Effect of Visibility on Departure \n\ Delays",
+       colour = "Airport") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 8),
+        axis.title.y = element_blank(),
+        panel.background = element_rect(fill = alpha("#70a9a1", 0.5)))
+
+grid.arrange(temp_vs_dep, wind_vs_dep, vis_vs_dep, ncol = 3, widths = c(2, 2, 2))
+
+
+
+```
+**Final answer and explanation of plot** <br> 
+The above plots explore the data in a more rigorous fashion. Delay time was plotted against the continuous variables of wind speed, temperature and visibility rating (treated as continuous here, but is ordinal).<br>
+
+In all cases, the trend line is considered statistically significant, however, there is an extremely low R2 value associated with it. This tells us that while there is an overall trend towards higher wind speed, temperature and lower visibility increasing delay times, there is so much variability around the trend line that this information is relatively useless in terms of predictive capacity.<br> 
+
+**As a key takeaway for decision makers here, they can expect that there may on occasion be significantly worse delays under adverse weather conditions, but this will certainly not always be the case. That said, there is likely to be some benefit to implementing additional measures to ensure timely operation if poor weather is expected.** 
+
+<br> What would be an interesting test in terms of further analysis would be searching for any significant interaction terms between the three independent variables and the response. 
+<br>
+<br>
+<br>
