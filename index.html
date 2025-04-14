@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Portfolio</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    h1 { color: #333; }
+    .section { margin-bottom: 2em; }
+    iframe { width: 100%; height: 600px; border: none; }
+  </style>
+</head>
+<body>
+  <h1>Welcome to My Portfolio</h1>
+
+  <div class="section">
+    <h2>📄 RMarkdown Report</h2>
+    <p><a href="project2.html" target="_blank">View HTML Report</a></p>
+  </div>
+
+  <div class="section">
+    <h2>📊 Tableau Dashboard</h2>
+    <!-- Replace the src URL with your Tableau public iframe src -->
+    <iframe 
+    src="https://public.tableau.com/views/CostvsHospitalLengthofStayAnalysis/Costs?:language=en-US&:display_count=yes&:origin=viz_share_link"
+    width="100%" 
+    height="800" 
+    style="border:none;">
+    </iframe>
+  </div>
+
+  <div class="section">
+    <h2>🚀 Streamlit App</h2>
+    <p><a href="https://biobandpredict.streamlit.app/" target="_blank">Launch Streamlit App</a></p>
+  </div>
+</body>
+</html>
