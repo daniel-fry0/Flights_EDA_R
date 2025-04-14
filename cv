@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My CV</title>
+</head>
+<body>
+  <embed src="Daniel Fry - 2025 - Data CV.pdf" type="application/pdf" width="800" height="600">
+  <p>If you cannot view the PDF, <a href="your-cv.pdf">download it here</a>.</p>
+</body>
+</html>
