@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cost vs Length of Stay Analysis: New York State Hospitals </title>
+  <title>Cost vs Length of Stay Analysis: New York State Hospitals</title>
 
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-VB5XVT5WVY"></script>
@@ -19,9 +19,8 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 2em auto;
-      max-width: 1000px;
-      padding-top: 60px; /* Creates space under the fixed Home button */
+      margin: 0;
+      padding-top: 60px;
     }
 
     .home-button {
@@ -39,6 +38,17 @@
       z-index: 1000;
     }
 
+    .content {
+      max-width: 1000px;
+      margin: 2em auto;
+      padding: 0 1em;
+    }
+
+    .dashboard {
+      width: 100%;
+      padding: 2em 0;
+    }
+
     iframe, tableau-viz {
       border: none;
     }
@@ -50,13 +60,18 @@
   <!-- Home Button -->
   <a class="home-button" href="https://daniel-fry0.github.io/Flights_EDA_R/">⬅ Home</a>
 
-  <!-- Dashboard Section -->
-  <div class="section">
+  <!-- Text Content -->
+  <div class="content">
     <h2>📊 Cost vs Length of Stay Analysis: New York Hospitals</h2>
-    <p>This was another project I completed in the course of learning to use Tableau. It uses publicly available New York State health data and allows the user to  dynamically filter
-    key variables by region, severity of injury/ailment and specific injury/ailment type. A quadrant plot was used to show the relationship between cost and length of stay by hospital,
-    serving as a convenient way to identify hospitals that are underperforming in terms of how long patients are staying for injury types, or in terms of total cost of stay. </p>
+    <p>
+      This was another project I completed in the course of learning to use Tableau. It uses publicly available New York State health data and allows the user to dynamically filter
+      key variables by region, severity of injury/ailment and specific injury/ailment type. A quadrant plot was used to show the relationship between cost and length of stay by hospital,
+      serving as a convenient way to identify hospitals that are underperforming in terms of how long patients are staying for injury types, or in terms of total cost of stay.
+    </p>
+  </div>
 
+  <!-- Full-Width Dashboard -->
+  <div class="dashboard">
     <tableau-viz 
       id="tableauViz"
       src="https://public.tableau.com/views/CostvsHospitalLengthofStayAnalysis/Costs"
