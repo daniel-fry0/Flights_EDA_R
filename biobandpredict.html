@@ -18,10 +18,22 @@
 </head>
 <body>
   <h1>🧬 BioBandPredict</h1>
-  <p>This Streamlit app uses student performance data to predict HSC band outcomes using machine learning models.</p>
+  <p>The embedded app below shows the student facing model that I have hosted online for student use. It allows students to set a task they would like to predict based on previous
+  performance, and then enter which completed tasks they would like to use to predict that result. The model will then provide a prediction for that result and display the R2 and MSE
+  for the prediction. However, the main purpose of the model, and when it is at its most accurate, is when it is used to predict students' final HSC result using all prior tasks. Here,
+  the MSE is quite low and the R2 is quite high.
+  <br>
+  <br>
+  The notebook below is for a slightly different deployment of the model, which allows the user to select if they would like to predict for a cohort from CSV, or if they are an individual 
+  and would like to do an individual prediction. The functionality and logic is otherwise the same. 
+  </p>
 
   <iframe src="https://biobandpredict.streamlit.app/?embed=true" allowfullscreen></iframe>
 
   <p>If the app does not load, <a href="https://biobandpredict.streamlit.app/" target="_blank">click here to open it in a new tab</a>.</p>
+
+  <h2>📘 Notebook</h2>
+  <p>This notebook shows the workflow used to power the BioBandPredict app.</p>
+  <iframe src="band_predictor_notebook.html" height="1000px"></iframe>
 </body>
 </html>
